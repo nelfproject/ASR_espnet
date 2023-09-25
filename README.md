@@ -1,3 +1,9 @@
+This is a branch of the ESPnet repository with new neural networks and training methods for ASR on Flemish Dutch.
+To use this repository, setup your environment (e.g. from the environment.yaml) and follow the ESPnet installation procedure (i.e. install all the tools and packages).
+
+The scripts to train and use the Flemish models can be found in egs2/cgn. 
+
+
 <div align="left"><img src="doc/image/espnet_logo1.png" width="550"/></div>
 
 # ESPnet: end-to-end speech processing toolkit
