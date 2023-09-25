@@ -36,8 +36,10 @@ class S3prlFrontend(AbsFrontend):
         frontend_conf: Optional[dict] = get_default_kwargs(Frontend),
         download_dir: str = None,
         multilayer_feature: bool = False,
+        layer_indices: int = None,
+        s3prl_path: str = None,
     ):
-        assert check_argument_types()
+        #assert check_argument_types()
         super().__init__()
         if isinstance(fs, str):
             fs = humanfriendly.parse_size(fs)
@@ -46,6 +48,8 @@ class S3prlFrontend(AbsFrontend):
             torch.hub.set_dir(download_dir)
 
         self.multilayer_feature = multilayer_feature
+        self.layer_indices = layer_indices
+        self.s3prl_path = s3prl_path
         self.upstream, self.featurizer = self._get_upstream(frontend_conf)
         if getattr(
             self.upstream, "model", None
@@ -64,16 +68,17 @@ class S3prlFrontend(AbsFrontend):
         )
         self.args = s3prl_args
 
-        s3prl_path = None
-        python_path_list = os.environ.get("PYTHONPATH", "(None)").split(":")
-        for p in python_path_list:
-            if p.endswith("s3prl"):
-                s3prl_path = p
-                break
-        assert s3prl_path is not None
+        if self.s3prl_path is None:
+            python_path_list = os.environ.get("PYTHONPATH", "(None)").split(":")
+            for p in python_path_list:
+                if p.endswith("s3prl"):
+                    s3prl_path = p
+                    break
+            self.s3prl_path = s3prl_path
+        assert self.s3prl_path is not None
 
         s3prl_upstream = torch.hub.load(
-            s3prl_path,
+            self.s3prl_path,
             s3prl_args.upstream,
             ckpt=s3prl_args.upstream_ckpt,
             model_config=s3prl_args.upstream_model_config,
@@ -87,9 +92,11 @@ class S3prlFrontend(AbsFrontend):
             feature_selection = "last_hidden_state"
         else:
             feature_selection = "hidden_states"
+
         s3prl_featurizer = Featurizer(
             upstream=s3prl_upstream,
             feature_selection=feature_selection,
+            layer_selection=self.layer_indices,
             upstream_device="cpu",
         )
 

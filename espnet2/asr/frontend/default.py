@@ -11,8 +11,8 @@ from typeguard import check_argument_types
 
 from espnet.nets.pytorch_backend.frontends.frontend import Frontend
 from espnet2.asr.frontend.abs_frontend import AbsFrontend
-from espnet2.layers.log_mel import LogMel
-from espnet2.layers.stft import Stft
+#from espnet2.layers.log_mel import LogMel
+#from espnet2.layers.stft import Stft
 from espnet2.utils.get_default_kwargs import get_default_kwargs
 
 
@@ -48,6 +48,7 @@ class DefaultFrontend(AbsFrontend):
         frontend_conf = copy.deepcopy(frontend_conf)
 
         if apply_stft:
+            from espnet2.layers.stft import Stft
             self.stft = Stft(
                 n_fft=n_fft,
                 win_length=win_length,
@@ -66,6 +67,7 @@ class DefaultFrontend(AbsFrontend):
         else:
             self.frontend = None
 
+        from espnet2.layers.log_mel import LogMel
         self.logmel = LogMel(
             fs=fs,
             n_fft=n_fft,

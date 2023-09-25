@@ -118,6 +118,11 @@ class BatchBeamSearch(BeamSearch):
             Hypothesis: The initial hypothesis.
 
         """
+        if isinstance(x, tuple):
+            device = x[0].device
+        else:
+            device = x.device
+
         init_states = dict()
         init_scores = dict()
         for k, d in self.scorers.items():
@@ -129,7 +134,7 @@ class BatchBeamSearch(BeamSearch):
                     score=0.0,
                     scores=init_scores,
                     states=init_states,
-                    yseq=torch.tensor([self.sos], device=x.device),
+                    yseq=torch.tensor([self.sos], device=device),
                 )
             ]
         )
@@ -215,13 +220,25 @@ class BatchBeamSearch(BeamSearch):
             BatchHypothesis: Best sorted hypotheses
 
         """
+        if isinstance(x, tuple):
+            dtype = x[0].dtype
+            device = x[0].device
+        else:
+            dtype = x.dtype
+            device = x.device
+
         n_batch = len(running_hyps)
         part_ids = None  # no pre-beam
         # batch scoring
         weighted_scores = torch.zeros(
-            n_batch, self.n_vocab, dtype=x.dtype, device=x.device
+            n_batch, self.n_vocab, dtype=dtype, device=device
         )
-        scores, states = self.score_full(running_hyps, x.expand(n_batch, *x.shape))
+
+        if isinstance(x, tuple):
+            x_expanded = (x[0].expand(n_batch, *x[0].shape), x[1].expand(n_batch, *x[1].shape))
+        else:
+            x_expanded = x.expand(n_batch, *x.shape)
+        scores, states = self.score_full(running_hyps, x_expanded)
         for k in self.full_scorers:
             weighted_scores += self.weights[k] * scores[k]
         # partial scoring
@@ -240,7 +257,7 @@ class BatchBeamSearch(BeamSearch):
             weighted_scores += self.weights[k] * part_scores[k]
         # add previous hyp scores
         weighted_scores += running_hyps.score.to(
-            dtype=x.dtype, device=x.device
+            dtype=dtype, device=device
         ).unsqueeze(1)
 
         # TODO(karita): do not use list. use batch instead

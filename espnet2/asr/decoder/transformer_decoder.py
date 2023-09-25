@@ -60,6 +60,7 @@ class BaseTransformerDecoder(AbsDecoder, BatchScorerInterface):
         use_output_layer: bool = True,
         pos_enc_class=PositionalEncoding,
         normalize_before: bool = True,
+        return_hidden: bool = False,
     ):
         assert check_argument_types()
         super().__init__()
@@ -91,6 +92,8 @@ class BaseTransformerDecoder(AbsDecoder, BatchScorerInterface):
 
         # Must set by the inheritance
         self.decoders = None
+
+        self.return_hidden = return_hidden
 
     def forward(
         self,
@@ -133,12 +136,19 @@ class BaseTransformerDecoder(AbsDecoder, BatchScorerInterface):
         x, tgt_mask, memory, memory_mask = self.decoders(
             x, tgt_mask, memory, memory_mask
         )
+
         if self.normalize_before:
             x = self.after_norm(x)
+
+        hidden = x.clone()
+
         if self.output_layer is not None:
             x = self.output_layer(x)
 
         olens = tgt_mask.sum(1)
+
+        if self.return_hidden:
+            return (x, hidden), olens
         return x, olens
 
     def forward_one_step(
@@ -243,6 +253,7 @@ class TransformerDecoder(BaseTransformerDecoder):
         pos_enc_class=PositionalEncoding,
         normalize_before: bool = True,
         concat_after: bool = False,
+        return_hidden: bool = False,
     ):
         assert check_argument_types()
         super().__init__(
@@ -254,6 +265,7 @@ class TransformerDecoder(BaseTransformerDecoder):
             use_output_layer=use_output_layer,
             pos_enc_class=pos_enc_class,
             normalize_before=normalize_before,
+            return_hidden=return_hidden,
         )
 
         attention_dim = encoder_output_size

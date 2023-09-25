@@ -291,11 +291,18 @@ class BeamSearch(torch.nn.Module):
             List[Hypotheses]: Best sorted hypotheses
 
         """
+        if isinstance(x, tuple):
+            device = x[0].device
+            dtype = x[0].dtype
+        else:
+            device = x.device
+            dtype = x.dtype
+
         best_hyps = []
-        part_ids = torch.arange(self.n_vocab, device=x.device)  # no pre-beam
+        part_ids = torch.arange(self.n_vocab, device=device)  # no pre-beam
         for hyp in running_hyps:
             # scoring
-            weighted_scores = torch.zeros(self.n_vocab, dtype=x.dtype, device=x.device)
+            weighted_scores = torch.zeros(self.n_vocab, dtype=dtype, device=device)
             scores, states = self.score_full(hyp, x)
             for k in self.full_scorers:
                 weighted_scores += self.weights[k] * scores[k]
@@ -352,14 +359,19 @@ class BeamSearch(torch.nn.Module):
 
         """
         # set length bounds
+        if isinstance(x, tuple):
+            x_shape = x[0].shape[0]
+        else:
+            x_shape = x.shape[0]
+
         if maxlenratio == 0:
-            maxlen = x.shape[0]
+            maxlen = x_shape
         elif maxlenratio < 0:
             maxlen = -1 * int(maxlenratio)
         else:
-            maxlen = max(1, int(maxlenratio * x.size(0)))
-        minlen = int(minlenratio * x.size(0))
-        logging.info("decoder input length: " + str(x.shape[0]))
+            maxlen = max(1, int(maxlenratio * x_shape))
+        minlen = int(minlenratio * x_shape)
+        logging.info("decoder input length: " + str(x_shape))
         logging.info("max output length: " + str(maxlen))
         logging.info("min output length: " + str(minlen))
 

@@ -1,0 +1,169 @@
+# default ~/.bashrc script
+
+# NOTE: See ~freeware/bash_profile.d/README before making
+# changes to this file.
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/esat/spchtemp/scratch/bbagher/k22/k2/cuda/lib64
+
+export PYTHONPATH=""
+export LD_LIBRARY_PATH=""
+export LC_CTYPE=en_US.UTF-8
+export PS1=\${PS1:-''}
+if false; then
+#### From what Lyan recommended ########## ~source /users/spraak/spch/soft/sgu21/srclogin/.bashrc #
+# make sure we know all basics concerning the system we are working on
+if [[ -z "${OPSYS:-}" ]]; then
+  # set a fail-safe path for every known OS
+  PATH=".:/usr/bin:/usr/ucb:/usr/sbin:/bin:/usr/bsd"
+
+  ulimit -S -c 0		# prevent core dumps
+  ulimit -S -t unlimited	# no limit on processor time
+  ulimit -S -f unlimited	# conservative limit on files
+  ulimit -S -s 8192		# stack size
+  umask 022			# default flags for file creation
+
+  # detect the system
+  uname=( `uname -snrm` )
+  export HOSTNAME=${uname[1]/.*/}
+  export SPR_ARCH=${uname[0]}_${uname[3]}
+  case "${uname[0]}" in
+    HP-UX )		export OPSYS=hppa ;;
+    OSF1 )		export OPSYS=alpha ;;
+    IRIX | IRIX64 )	export OPSYS=sgi ;;
+    Darwin )		export OPSYS=mac-osx ;;
+    SunOS )
+      if (( "${uname[2]/.*/}" == 5 )); then export OPSYS=sol2; else export OPSYS=sun4; fi
+      ;;
+    Linux )
+      if [[ "${uname[3]}" == i[0-9]* ]]; then export OPSYS=linux-i386; else export OPSYS=linux-${uname[3]}; fi
+      ;;
+    * )			export OPSYS=unknown ;;
+  esac
+  unset uname
+
+  # set some common environment variables to usefull values
+  if [[ -z "${USER:-1}" ]]; then export USER=`/usr/bin/whoami`; fi
+  if [[ -z "${HOME:-}" ]]; then export HOME=~; fi
+  if [[ -z "${TERM:-}" || $TERM == unknown || $TERM == linux ]]; then export TERM=xterm; fi
+#  export MAIL="/esat/mail/${USER}"		# the ESAT mail location
+  export PRINTER=ulmali LPDEST=ulmali		# use the printer at office 02.04 by default
+  export IGNOREEOF=10				# don't exit when someone presses ^D
+  export LC_ALL=C				# any else still gives problems with our software
+
+  # set, depending on the OS, the path on some usefull value
+  export PATH="${HOME}/bin/${OPSYS}:${HOME}/bin:/usr/bin:/bin:/usr/local/bin:/usr/X11R6/bin:/software/bin"
+  export MANPATH="/usr/man:/usr/dt/man:/usr/X11R6/man:/usr/share/man:/software/man"
+fi
+
+# make sure we know the speech group software
+if [[ -z "${SPCHSOFT:-}" ]]; then
+  # Definition of speech directory variables
+  if [[ -z "${SPR_HOME:-}" ]];   then export SPR_HOME=~spchprog/SPRAAK/current;		fi
+  if [[ -z "${SPCHHOME:-}" ]];   then export SPCHHOME=/users/spraak/spch;		fi
+  if [[ -z "${SPCHSOFT:-}" ]];   then export SPCHSOFT=$SPCHHOME/soft;			fi
+  if [[ -z "${SPCHPROG:-}" ]];   then export SPCHPROG=$SPCHHOME/prog;			fi
+  if [[ -z "${SPCHDATA:-}" ]];   then export SPCHDATA=~spchdata;			fi
+  if [[ -z "${BSSDIR:-}" ]];     then export BSSDIR=$SPCHSOFT/bss;			fi
+  if [[ -z "${SGUDIR:-}" ]];     then export SGUDIR=$SPCHSOFT/sgu;			fi
+  if [[ -z "${SSPDIR:-}" ]];     then export SSPDIR=$SPCHSOFT/ssp;			fi
+  if [[ -z "${NNDIR:-}" ]];      then export NNDIR=$SPCHSOFT/nn;			fi
+  if [[ -z "${HMMDIR:-}" ]];     then export HMMDIR=$SPCHSOFT/hmm;			fi
+  if [[ -z "${SPHEREDIR:-}" ]];  then export SPHEREDIR=$SPCHSOFT/sphere;		fi
+  if [[ -z "${DEBUG:-}" ]];      then export DEBUG=0;					fi
+  if [[ -f "$SPCHHOME/tex/fonts/EXPORT" ]]; then source $SPCHHOME/tex/fonts/EXPORT;	fi
+
+  # cleanup the path
+  PATH_SAVE2=""
+  if [[ -d /software/bin ]]; then PATH_SAVE2="${PATH_SAVE2}:/software/bin"; fi
+
+  # extend the path with the speech software
+  export PATH=`$SPCHSOFT/sgu21/srclogin/add.filt ".:${SPCHPROG}/bin${OPSYS}:${SPCHPROG}/bin:${PATH}:${SPR_HOME}/bin:${SPR_HOME}/bin/${SPR_ARCH}:${SGUDIR}/bin:${HMMDIR}/bin${OPSYS}:${HMMDIR}/bin:${SSPDIR}/bin${OPSYS}:${SSPDIR}/bin:${NNDIR}/bin${OPSYS}:${BSSDIR}/bin${OPSYS}:${BSSDIR}/bin"`
+  export PATH=`$SPCHSOFT/sgu21/srclogin/add.rfilt "${PATH}:${PATH_SAVE2}"`
+  export LD_LIBRARY_PATH=`$SPCHSOFT/sgu21/srclogin/add.filt "${LD_LIBRARY_PATH:-}:${SPCHPROG}/lib${OPSYS}:${SPR_HOME}/lib/${SPR_ARCH}"`
+  export LD_LIBRARY_PATH_SAVE="$LD_LIBRARY_PATH"	# ld.so forgets LD_LIBRARY_PATH on sgig and ssh-agent does this
+  export MANPATH=`$SPCHSOFT/sgu21/srclogin/add.filt "${SGUDIR}/man:${HMMDIR}/man:${NNDIR}/man:${SSPDIR}/man:${BSSDIR}/man:${SPCHPROG}/man:${MANPATH:-}"`
+  export MATLABPATH=`$SPCHSOFT/sgu21/srclogin/add.filt "${MATLABPATH:-}:${SPCHHOME}/matlab"`
+  export ALPINO_HOME=$SPCHPROG/spch/Alpino
+fi
+
+if [[ (-z ${LD_LIBRARY_PATH:-}) && !(-z ${LD_LIBRARY_PATH_SAVE:-}) ]]; then export LD_LIBRARY_PATH="$LD_LIBRARY_PATH_SAVE";	fi
+# define some usefull aliases and functions
+function version() { eval `setversion $@`; }
+function unsetversion() { eval `setversionoff $@`; }
+function spr_version() { eval `spr_version.py $@`; }
+
+#### From what Lyan recommended ########## ~source /users/spraak/spch/soft/sgu21/srclogin/.bashrc #
+fi
+
+
+source /freeware/env/bash_profile.d/bashrc.general
+
+
+
+##########################
+# CUSTOMIZATIONS GO HERE #
+##########################
+
+#alias pycharm='/users/spraak/spch/prog/spch/pycharm-community-2018.3.5/bin/pycharm.sh' #bagher
+
+alias ssh='ssh -XC'
+#export PYTHONPATH=~spch/.local/lib/python2.7/site-packages${PYTHONPATH:+:$PYTHONPATH}    #recent
+#source /users/spraak/spch/prog/spch/add_p3.6   #bagher
+export KALDI_ROOT=/users/spraak/spch/prog/spch/kaldi
+#export LD_LIBRARY_PATH=/users/spraak/spch/prog/spch/cuda-10.1/lib64:/users/spraak/spch/prog/spch/cuda-10.1/extras/CUPTI/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+#export LD_LIBRARY_PATH=/users/spraak/spch/prog/spch/cuda-9.0/lib64:/users/spraak/spch/prog/spch/cuda-9.0/extras/CUPTI/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} #bagher
+
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+if false; then
+__conda_setup="$('/esat/spchdisk/scratch/jponcele/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/esat/spchdisk/scratch/jponcele/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/esat/spchdisk/scratch/jponcele/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/esat/spchdisk/scratch/jponcele/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+fi
+
+
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/esat/spchdisk/scratch/bbagher/Anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/esat/spchdisk/scratch/bbagher/Anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/esat/spchdisk/scratch/bbagher/Anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/esat/spchdisk/scratch/bbagher/Anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+umask 022
+
+
+
+export PATH=$PATH:"/usr/local/cuda/bin"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"/usr/local/cuda/lib:/usr/local/lib"
+export CPLUS_INCLUDE_PATH="/usr/local/cuda/include"
+export CUDA_HOME="/usr/local/cuda"
+alias python3=python
+#//Folder containing NVIDIA cuDNN header files
+#CUDNN_INCLUDE_DIR:FILEPATH=/esat/spchdisk/bbagher/Anaconda3/envs/k2/include/
+
+#//Path to a file.
+#CUDNN_INCLUDE_PATH:PATH=/esat/spchdisk/bbagher/Anaconda3/envs/k2/include/
+
+#//Path to the cudnn library file (e.g., libcudnn.so)
+#CUDNN_LIBRARY:FILEPATH=/esat/spchdisk/bbagher/Anaconda3/envs/k2/lib/libcudnn.so
+
+#//Path to a library.
+#CUDNN_LIBRARY_PATH:FILEPATH=/esat/spchdisk/bbagher/Anaconda3/envs/k2/lib/libcudnn.so
+

@@ -312,6 +312,12 @@ class AbsTask(ABC):
             help="Specify iterator type",
         )
 
+        group.add_argument(
+            "--batch_asr_ratio",
+            type=float,
+            default=None,
+            help="Ratio of asr/subs in batch for custom_folded sampler")
+
         group.add_argument("--output_dir", type=str_or_none, default=None)
         group.add_argument(
             "--ngpu",
@@ -643,13 +649,24 @@ class AbsTask(ABC):
             help="Ignore size mismatch when loading pre-trained model",
         )
         group.add_argument(
+            "--convert_to_dual",
+            type=str2bool,
+            default=False,
+            help="Merge separate decoder branches of pre-trained model into dual decoder architecture",
+        )
+        group.add_argument(
             "--freeze_param",
             type=str,
             default=[],
             nargs="*",
             help="Freeze parameters",
         )
-
+        group.add_argument(
+            "--freeze_all_except_cross",
+            type=str2bool,
+            default=False,
+            help="Freeze all parameters except cross-attention",
+        )
         group = parser.add_argument_group("BatchSampler related")
         group.add_argument(
             "--num_iters_per_epoch",
@@ -1121,10 +1138,18 @@ class AbsTask(ABC):
             dtype=getattr(torch, args.train_dtype),
             device="cuda" if args.ngpu > 0 else "cpu",
         )
+
         for t in args.freeze_param:
+            logging.info(f"Freezing all parameters that start with {t}")
             for k, p in model.named_parameters():
                 if k.startswith(t + ".") or k == t:
-                    logging.info(f"Setting {k}.requires_grad = False")
+                    #logging.info(f"Setting {k}.requires_grad = False")
+                    p.requires_grad = False
+
+        if args.freeze_all_except_cross:
+            logging.info(f"Freezing all parameters except the cross-attention modules")
+            for k, p in model.named_parameters():
+                if 'cross' not in k and 'ctc' not in k:
                     p.requires_grad = False
 
         # 3. Build optimizer
@@ -1219,17 +1244,36 @@ class AbsTask(ABC):
         else:
             # 6. Loads pre-trained model
             for p in args.init_param:
-                logging.info(f"Loading pretrained params from {p}")
-                load_pretrained_model(
-                    model=model,
-                    init_param=p,
-                    ignore_init_mismatch=args.ignore_init_mismatch,
-                    # NOTE(kamo): "cuda" for torch.load always indicates cuda:0
-                    #   in PyTorch<=1.4
-                    map_location=f"cuda:{torch.cuda.current_device()}"
-                    if args.ngpu > 0
-                    else "cpu",
-                )
+                if len(p.split(';')) > 1:  # ;-separated argument instead of list
+                    #p = p[1:-1]  # remove double quotes, very hacky...
+                    for pp in p.split(';'):
+                        logging.info(f"Loading pretrained params from {pp}")
+                        load_pretrained_model(
+                            model=model,
+                            init_param=pp,
+                            ignore_init_mismatch=args.ignore_init_mismatch,
+                            # NOTE(kamo): "cuda" for torch.load always indicates cuda:0
+                            #   in PyTorch<=1.4
+                            map_location=f"cuda:{torch.cuda.current_device()}"
+                            if args.ngpu > 0
+                            else "cpu",
+                            convert_to_dual=args.convert_to_dual,
+                        )
+                else:
+                    logging.info(f"Loading pretrained params from {p}")
+                    load_pretrained_model(
+                        model=model,
+                        init_param=p,
+                        ignore_init_mismatch=args.ignore_init_mismatch,
+                        # NOTE(kamo): "cuda" for torch.load always indicates cuda:0
+                        #   in PyTorch<=1.4
+                        map_location=f"cuda:{torch.cuda.current_device()}"
+                        if args.ngpu > 0
+                        else "cpu",
+                        convert_to_dual=args.convert_to_dual,
+                    )
+
+            torch.save(model.state_dict(), output_dir / f"init_model.pth")
 
             # 7. Build iterator factories
             if args.multiple_iterator:
@@ -1491,6 +1535,8 @@ class AbsTask(ABC):
             )
         else:
             utt2category_file = None
+
+        logging.info(f"batch_asr_ratio: {args.batch_asr_ratio}")
         batch_sampler = build_batch_sampler(
             type=iter_options.batch_type,
             shape_files=iter_options.shape_files,
@@ -1504,6 +1550,7 @@ class AbsTask(ABC):
             if iter_options.distributed
             else 1,
             utt2category_file=utt2category_file,
+            batch_asr_ratio=args.batch_asr_ratio,
         )
 
         batches = list(batch_sampler)

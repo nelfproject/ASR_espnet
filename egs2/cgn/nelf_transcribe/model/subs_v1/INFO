@@ -1,0 +1,9 @@
+# ASR+SUBS model
+
+runfile="/users/spraak/jponcele/espnet/egs2/cgn/st1/run-subs-C8-new.sh"
+
+model="/esat/spchtemp/scratch/jponcele/espnet2/exp/exp-subs-chained/st_train_subtitling_chained_PL_C8_new"
+#--> also copy config.yaml from here ("train_config.yaml") and change bpemodel
+
+overwrite_bpemodel="/users/spraak/jponcele/espnet/egs2/cgn/st1/data/vl_token_list_/joint_bpe_unigram5000/bpe.model"
+overwrite_token_list="/users/spraak/jponcele/espnet/egs2/cgn/st1/data/vl_token_list_/joint_bpe_unigram5000/tokens.txt"

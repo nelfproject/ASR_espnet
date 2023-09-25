@@ -10,7 +10,7 @@ from typeguard import check_argument_types
 from espnet.nets.pytorch_backend.nets_utils import make_pad_mask
 from espnet2.enh.layers.complex_utils import is_complex
 from espnet2.layers.inversible_interface import InversibleInterface
-import librosa
+#import librosa
 import numpy as np
 
 is_torch_1_9_plus = LooseVersion(torch.__version__) >= LooseVersion("1.9.0")
@@ -137,7 +137,9 @@ class Stft(torch.nn.Module, InversibleInterface):
             output = []
             # iterate over istances in a batch
             for i, instance in enumerate(input):
-                stft = librosa.stft(input[i].numpy(), **stft_kwargs)
+                raise NotImplementedError('Uncomment the import librosa statement above.')
+                #stft = librosa.stft(input[i].numpy(), **stft_kwargs)
+                stft = None
                 output.append(torch.tensor(np.stack([stft.real, stft.imag], -1)))
             output = torch.stack(output, 0)
             if not self.onesided:

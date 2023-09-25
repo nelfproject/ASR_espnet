@@ -1,0 +1,83 @@
+batch_size: 32
+accum_grad: 8
+max_epoch: 150
+patience: none
+# The initialization method for model parameters
+init: xavier_uniform
+best_model_criterion:
+-   - valid
+    - acc
+    - max
+keep_nbest_models: 10
+
+unused_parameters: true
+freeze_param: [
+"frontend.upstream"
+]
+
+frontend: s3prl
+frontend_conf:
+    frontend_conf:
+        upstream: wav2vec2_xlsr_new_300m  #wav2vec2_xlsr_new_2B  #  wav2vec2_xlsr
+    download_dir: /esat/spchtemp/scratch/jponcele/espnet2/w2v2
+    multilayer_feature: True
+    s3prl_path: /users/spraak/jponcele/espnet/tools/s3prl
+#    layer_indices: [12,13,14,15,16,17,18,19,20,21,22,23,24]
+
+#preencoder: linear
+#preencoder_conf:
+#    input_size: 1920  # 1024
+#    output_size: 80
+
+encoder: transformer
+encoder_conf:
+    output_size: 256
+    attention_heads: 4
+    linear_units: 2048
+    num_blocks: 6
+    dropout_rate: 0.1
+    positional_dropout_rate: 0.1
+    attention_dropout_rate: 0.0
+    input_layer: linear
+    normalize_before: true
+
+decoder: transformer
+decoder_conf:
+    attention_heads: 4
+    linear_units: 2048
+    num_blocks: 6
+    dropout_rate: 0.1
+    positional_dropout_rate: 0.1
+    self_attention_dropout_rate: 0.0
+    src_attention_dropout_rate: 0.0
+
+ctc_conf:
+    ignore_nan_grad: true
+
+model_conf:
+    ctc_weight: 0.3
+    lsm_weight: 0.1
+    length_normalized_loss: false
+
+optim: adam
+optim_conf:
+    lr: 0.004
+scheduler: warmuplr
+scheduler_conf:
+    warmup_steps: 25000
+
+specaug: specaug
+specaug_conf:
+    apply_time_warp: true
+    time_warp_window: 5
+    time_warp_mode: bicubic
+    apply_freq_mask: true
+    freq_mask_width_range:
+    - 0
+    - 30
+    num_freq_mask: 2
+    apply_time_mask: true
+    time_mask_width_range:
+    - 0
+    - 40
+    num_time_mask: 2

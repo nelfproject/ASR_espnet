@@ -95,6 +95,7 @@ class RNNDecoder(AbsDecoder):
         replace_sos: bool = False,
         num_encs: int = 1,
         att_conf: dict = get_default_kwargs(build_attention_list),
+        return_hidden: bool = False,
     ):
         # FIXME(kamo): The parts of num_spk should be refactored more more more
         assert check_argument_types()
@@ -113,6 +114,10 @@ class RNNDecoder(AbsDecoder):
         self.sampling_probability = sampling_probability
         self.dropout = dropout
         self.num_encs = num_encs
+        self.return_hidden = return_hidden
+
+        if self.return_hidden:
+            raise NotImplementedError
 
         # for multilingual translation
         self.replace_sos = replace_sos

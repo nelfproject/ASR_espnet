@@ -1,0 +1,15 @@
+# Dual Model trained on ASR + Subtitle data, converted to ASR
+
+train_file="/users/spraak/jponcele/espnet/egs2/cgn/st1/run-subs-C8-new.sh"
+-> asr decode_file=
+
+
+pretrained_model="/esat/spchtemp/scratch/jponcele/espnet2/exp/exp-subs-chained/st_train_subtitling_chained_PL_C8_new/averaged_model_81epochs.pth"
+-> converted to asr: "/esat/spchtemp/scratch/jponcele/espnet2/exp/exp-fbp-new/asr_train_asr_conformer_fbp_2_specaug_new_bpe5000_digits_lr_v6_subs_C8_new/init_model.pth"
+
+#--> also copy config.yaml from here ("train_config.yaml") and change bpemodel
+
+
+bpemodel="/users/spraak/jponcele/espnet/egs2/cgn/st1/data/vl_token_list_/joint_bpe_unigram5000/bpe.model"
+
+token_list="/users/spraak/jponcele/espnet/egs2/cgn/st1/data/vl_token_list_/joint_bpe_unigram5000/tokens.txt"

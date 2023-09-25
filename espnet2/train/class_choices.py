@@ -1,6 +1,7 @@
 from typing import Mapping
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from typeguard import check_argument_types
 from typeguard import check_return_type
@@ -36,7 +37,7 @@ class ClassChoices:
         self,
         name: str,
         classes: Mapping[str, type],
-        type_check: type = None,
+        type_check: Union[type, tuple] = None,
         default: str = None,
         optional: bool = False,
     ):
@@ -47,9 +48,20 @@ class ClassChoices:
         if "none" in self.classes or "nil" in self.classes or "null" in self.classes:
             raise ValueError('"none", "nil", and "null" are reserved.')
         if type_check is not None:
-            for v in self.classes.values():
-                if not issubclass(v, type_check):
-                    raise ValueError(f"must be {type_check.__name__}, but got {v}")
+            if isinstance(type_check, tuple):
+                for v in self.classes.values():
+                    check_ok = False
+                    for type in type_check:
+                        if issubclass(v, type):
+                            check_ok = True
+                        else:
+                            pass
+                    if not check_ok:
+                        raise ValueError(f"must be {type_check.__name__}, but got {v}")
+            else:
+                for v in self.classes.values():
+                    if not issubclass(v, type_check):
+                        raise ValueError(f"must be {type_check.__name__}, but got {v}")
 
         self.optional = optional
         self.default = default

@@ -7,6 +7,7 @@ from typing import Dict
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 
 def to_device(m, x):
@@ -500,3 +501,44 @@ def get_activation(act):
     }
 
     return activation_funcs[act]()
+
+
+def mask_based_pad(mask_x, x, y, pad_val=-1):
+    """
+    Pad x or y (tensors or mask tensors) so that they are the same size
+    mask_x: boolean mask tensor indicating which utts are of class x, [BS]
+    x: padded sequence tensor of class x, [BS x_len] or [BS x_len x_len]
+    y: padded_sequence_tensor of class y, [BS y_len] or [BS y_len y_len]
+    pad_val: pad x or y with this value, -1 or int or False/True
+
+    return padded_x, padded_y
+    """
+    x_len, y_len = x.shape[-1], y.shape[-1]
+
+    assert len(x.shape) == len(y.shape)
+    assert (len(x.shape) == 2 or len(x.shape) == 3)
+    assert mask_x.shape[0] == x.shape[0]
+    assert mask_x.shape[0] == y.shape[0]
+
+    if x_len > y_len:
+        x_pad = x
+        if len(y.shape) == 2:
+            y_pad = F.pad(y, (0, x_len - y_len), "constant", pad_val)
+        elif len(y.shape) == 3:
+            y_pad = F.pad(y, (0, x_len - y_len, 0, x_len - y_len), "constant", pad_val)
+    elif y_len > x_len:
+        y_pad = y
+        if len(x.shape) == 2:
+            x_pad = F.pad(x, (0, y_len - x_len), "constant", pad_val)
+        elif len(x.shape) == 3:
+            x_pad = F.pad(x, (0, y_len - x_len, 0, y_len - x_len), "constant", pad_val)
+    else:
+        x_pad, y_pad = x, y
+
+    tgt_len = x_pad.shape[-1]
+    if len(x.shape) == 2:
+        mask_x_pad = mask_x.view(-1, 1).expand(-1, tgt_len)
+    elif len(x.shape) == 3:
+        mask_x_pad = mask_x.view(-1, 1, 1).expand(-1, tgt_len, tgt_len)
+
+    return torch.where(mask_x_pad, x_pad, y_pad)

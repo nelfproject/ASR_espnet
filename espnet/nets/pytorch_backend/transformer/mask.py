@@ -33,3 +33,18 @@ def target_mask(ys_in_pad, ignore_id):
     ys_mask = ys_in_pad != ignore_id
     m = subsequent_mask(ys_mask.size(-1), device=ys_mask.device).unsqueeze(0)
     return ys_mask.unsqueeze(-2) & m
+
+
+def create_cross_mask(ys_in_pad, ys_cross_pad, ignore_id, wait_k_cross=0, dtype=torch.bool):
+    """Create mask for decoder self-attention.
+    :param torch.Tensor ys_pad: batch of padded target sequences (B, Lmax)
+    :param int ignore_id: index of padding
+    :param torch.dtype dtype: result dtype
+    :rtype: torch.Tensor
+    """
+    ys_cross_pad = ys_cross_pad != ignore_id
+    m = torch.tril(torch.ones(ys_in_pad.size(-1), ys_cross_pad.size(-1),
+                              device=ys_cross_pad.device, dtype=dtype),
+                   diagonal=wait_k_cross)
+    m = m.unsqueeze(0)
+    return ys_cross_pad.unsqueeze(-2) & m

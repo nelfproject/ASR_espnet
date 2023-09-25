@@ -8,12 +8,12 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+from typing import List
 
 import numpy as np
 import torch
 from typeguard import check_argument_types
 from typeguard import check_return_type
-from typing import List
 
 from espnet.nets.batch_beam_search import BatchBeamSearch
 from espnet.nets.batch_beam_search_online_sim import BatchBeamSearchOnlineSim
@@ -35,7 +35,6 @@ from espnet2.utils import config_argparse
 from espnet2.utils.types import str2bool
 from espnet2.utils.types import str2triple_str
 from espnet2.utils.types import str_or_none
-
 
 class Speech2Text:
     """Speech2Text class
@@ -214,6 +213,8 @@ class Speech2Text:
 
         # b. Forward Encoder
         enc, _ = self.asr_model.encode(**batch)
+        if isinstance(enc, tuple):
+            enc = enc[0]
         assert len(enc) == 1, len(enc)
 
         # c. Passed the encoder result and the beam search
@@ -365,6 +366,7 @@ def inference(
         allow_variable_data_keys=allow_variable_data_keys,
         inference=True,
     )
+
 
     # 7 .Start for-loop
     # FIXME(kamo): The output format should be discussed about
@@ -552,6 +554,7 @@ def main(cmd=None):
     args = parser.parse_args(cmd)
     kwargs = vars(args)
     kwargs.pop("config", None)
+    print(kwargs)
     inference(**kwargs)
 
 

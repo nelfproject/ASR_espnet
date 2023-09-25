@@ -14,6 +14,7 @@ from typeguard import check_return_type
 
 from espnet2.asr.ctc import CTC
 from espnet2.asr.decoder.abs_decoder import AbsDecoder
+from espnet2.asr.decoder.mlm_decoder import MLMDecoder
 from espnet2.asr.decoder.rnn_decoder import RNNDecoder
 from espnet2.asr.decoder.transformer_decoder import (
     DynamicConvolution2DTransformerDecoder,  # noqa: H301
@@ -45,10 +46,12 @@ from espnet2.asr.frontend.abs_frontend import AbsFrontend
 from espnet2.asr.frontend.default import DefaultFrontend
 from espnet2.asr.frontend.s3prl import S3prlFrontend
 from espnet2.asr.frontend.windowing import SlidingWindow
+from espnet2.asr.maskctc_model import MaskCTCModel
 from espnet2.asr.postencoder.abs_postencoder import AbsPostEncoder
 from espnet2.asr.postencoder.hugging_face_transformers_postencoder import (
     HuggingFaceTransformersPostEncoder,  # noqa: H301
 )
+from espnet2.asr.postencoder.linear_postencoder import LinearPostEncoder
 from espnet2.asr.preencoder.abs_preencoder import AbsPreEncoder
 from espnet2.asr.preencoder.linear import LinearProjection
 from espnet2.asr.preencoder.sinc import LightweightSincConvs
@@ -62,6 +65,7 @@ from espnet2.text.phoneme_tokenizer import g2p_choices
 from espnet2.torch_utils.initialize import initialize
 from espnet2.train.class_choices import ClassChoices
 from espnet2.train.collate_fn import CommonCollateFn
+from espnet2.train.abs_espnet_model import AbsESPnetModel
 from espnet2.train.preprocessor import CommonPreprocessor
 from espnet2.train.trainer import Trainer
 from espnet2.utils.get_default_kwargs import get_default_kwargs
@@ -79,7 +83,8 @@ frontend_choices = ClassChoices(
         s3prl=S3prlFrontend,
     ),
     type_check=AbsFrontend,
-    default="default",
+    default=None,  #"default",
+    optional=True,
 )
 specaug_choices = ClassChoices(
     name="specaug",
@@ -128,6 +133,7 @@ postencoder_choices = ClassChoices(
     name="postencoder",
     classes=dict(
         hugging_face_transformers=HuggingFaceTransformersPostEncoder,
+        linear=LinearPostEncoder
     ),
     type_check=AbsPostEncoder,
     default=None,
@@ -142,9 +148,20 @@ decoder_choices = ClassChoices(
         dynamic_conv=DynamicConvolutionTransformerDecoder,
         dynamic_conv2d=DynamicConvolution2DTransformerDecoder,
         rnn=RNNDecoder,
+        mlm=MLMDecoder,
     ),
     type_check=AbsDecoder,
     default="rnn",
+)
+model_choices = ClassChoices(
+    name="model",
+    classes=dict(
+        espnet=ESPnetASRModel,
+        maskctc=MaskCTCModel,
+    ),
+    type_check=AbsESPnetModel,
+    default="espnet",
+    optional=True,
 )
 
 
@@ -168,6 +185,8 @@ class ASRTask(AbsTask):
         postencoder_choices,
         # --decoder and --decoder_conf
         decoder_choices,
+        # --model and --model_conf
+        model_choices,
     ]
 
     # If you need to modify train() or eval() procedures, change Trainer class here
@@ -216,12 +235,12 @@ class ASRTask(AbsTask):
             default=get_default_kwargs(CTC),
             help="The keyword arguments for CTC class.",
         )
-        group.add_argument(
-            "--model_conf",
-            action=NestedDictAction,
-            default=get_default_kwargs(ESPnetASRModel),
-            help="The keyword arguments for model class.",
-        )
+        # group.add_argument(
+        #     "--model_conf",
+        #     action=NestedDictAction,
+        #     default=get_default_kwargs(ESPnetASRModel),
+        #     help="The keyword arguments for model class.",
+        # )
 
         group = parser.add_argument_group(description="Preprocess related")
         group.add_argument(
@@ -386,7 +405,7 @@ class ASRTask(AbsTask):
         logging.info(f"Vocabulary size: {vocab_size }")
 
         # 1. frontend
-        if args.input_size is None:
+        if args.frontend is not None:  #args.input_size is None
             # Extract features in the model
             frontend_class = frontend_choices.get_class(args.frontend)
             frontend = frontend_class(**args.frontend_conf)
@@ -454,8 +473,13 @@ class ASRTask(AbsTask):
         # 7. RNN-T Decoder (Not implemented)
         rnnt_decoder = None
 
+        try:
+            model_class = model_choices.get_class(args.model)
+        except AttributeError:
+            model_class = model_choices.get_class("espnet")
+
         # 8. Build model
-        model = ESPnetASRModel(
+        model = model_class(
             vocab_size=vocab_size,
             frontend=frontend,
             specaug=specaug,
@@ -465,7 +489,6 @@ class ASRTask(AbsTask):
             postencoder=postencoder,
             decoder=decoder,
             ctc=ctc,
-            rnnt_decoder=rnnt_decoder,
             token_list=token_list,
             **args.model_conf,
         )

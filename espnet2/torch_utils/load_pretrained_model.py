@@ -3,6 +3,7 @@ from typing import Dict
 from typing import Union
 
 import logging
+import os
 import torch
 import torch.nn
 import torch.optim
@@ -43,6 +44,7 @@ def load_pretrained_model(
     model: torch.nn.Module,
     ignore_init_mismatch: bool,
     map_location: str = "cpu",
+    convert_to_dual: bool = False,
 ):
     """Load a model state and set it to the model.
 
@@ -58,6 +60,7 @@ def load_pretrained_model(
         ... )
         >>> load_pretrained_model("somewhere/decoder.pth::decoder", model)
     """
+    ignore_init_mismatch = True
     sps = init_param.split(":", 4)
     if len(sps) == 4:
         path, src_key, dst_key, excludes = sps
@@ -75,10 +78,17 @@ def load_pretrained_model(
     if dst_key == "":
         dst_key = None
 
-    if dst_key is None:
+    def rm_quote(x):
+        if x is None:
+            return x
+        return x.replace("'", "")
+    path = rm_quote(path)
+    dst_key = rm_quote(dst_key)
+    src_key = rm_quote(src_key)
+
+    if dst_key is None or src_key == 'extra_mt_decoder':
         obj = model
     else:
-
         def get_attr(obj: Any, key: str):
             """Get an nested attribute.
 
@@ -95,7 +105,6 @@ def load_pretrained_model(
             for k in key.split("."):
                 obj = getattr(obj, k)
             return obj
-
         obj = get_attr(model, dst_key)
 
     src_state = torch.load(path, map_location=map_location)
@@ -104,14 +113,57 @@ def load_pretrained_model(
             src_state = {k: v for k, v in src_state.items() if not k.startswith(e)}
 
     if src_key is not None:
-        src_state = {
-            k[len(src_key) + 1 :]: v
-            for k, v in src_state.items()
-            if k.startswith(src_key)
-        }
+        if convert_to_dual and src_key == "extra_mt_decoder":
+            src_state = {
+                k.replace('decoder.', 'extra_mt_decoder.'): v
+                for k, v in src_state.items()
+                if k.startswith('decoder')
+            }
+        else:
+            src_state = {
+                k[len(src_key) + 1 :]: v
+                for k, v in src_state.items()
+                if k.startswith(src_key)
+            }
 
     dst_state = obj.state_dict()
+    if convert_to_dual:
+        src_state = convert_to_dual_decoder(src_state)
     if ignore_init_mismatch:
         src_state = filter_state_dict(dst_state, src_state)
     dst_state.update(src_state)
     obj.load_state_dict(dst_state)
+
+
+def convert_to_dual_decoder(state_dict):
+    # merge independent subtitle and ASR decoder branches into the dual decoder architecture to load a pretrained model
+    all_keys = list(state_dict.keys())
+
+    for key in all_keys:
+        n = key.split('.')[0]
+        if n == 'decoder':
+            # ASR branch
+            new_key = key.split('.')
+            if new_key[1] == 'decoders':
+                new_key[1] = 'dual_decoders'
+                new_key[3] = new_key[3] + '_asr'
+            else:
+                # embedding / output layer / etc.,
+                new_key[1] = new_key[1] + '_asr'
+            new_key = '.'.join(new_key)
+            state_dict[new_key] = state_dict.pop(key)
+
+        elif n == 'extra_mt_decoder':
+            # subtitle branch
+            new_key = key.split('.')
+            new_key[0] = 'decoder'
+            if new_key[1] == 'decoders':
+                new_key[1] = 'dual_decoders'
+            new_key = '.'.join(new_key)
+            state_dict[new_key] = state_dict.pop(key)
+
+        else:
+            # encoder, ctc weights, etc. (same, don't change)
+            continue
+
+    return state_dict

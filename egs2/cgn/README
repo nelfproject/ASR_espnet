@@ -1,0 +1,5 @@
+This directory contains experiments on the CGN dataset (Corpus Gesproken Nederlands).
+
+- asr1: Training models on verbatim data from CGN
+- st1: Training models on verbatim and subtitle data
+- nelf_transcribe: Pipeline to transcribe files in web service

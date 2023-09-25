@@ -13,6 +13,8 @@ from espnet2.samplers.num_elements_batch_sampler import NumElementsBatchSampler
 from espnet2.samplers.sorted_batch_sampler import SortedBatchSampler
 from espnet2.samplers.unsorted_batch_sampler import UnsortedBatchSampler
 
+from espnet2.samplers.custom_folded_batch_sampler import CustomFoldedBatchSampler
+
 
 BATCH_TYPES = dict(
     unsorted="UnsortedBatchSampler has nothing in particular feature and "
@@ -71,6 +73,12 @@ BATCH_TYPES = dict(
     "    utterance_id_a 1000,80\n"
     "    utterance_id_b 1453,80\n"
     "    utterance_id_c 1241,80\n",
+    custom_folded="CustomFoldedBatchSampler supports variable batch_size. "
+    "The batch_size is decided by\n"
+    "    batch_size = base_batch_size // (L // fold_length)\n"
+    "L is referred to the largest length of samples in the mini-batch. "
+    "This samples requires length information as same as SortedBatchSampler.\n"
+    "This sampler has custom options for combining different data streams into batches.",
 )
 
 
@@ -86,6 +94,7 @@ def build_batch_sampler(
     fold_lengths: Sequence[int] = (),
     padding: bool = True,
     utt2category_file: str = None,
+    batch_asr_ratio: float = None,
 ) -> AbsSampler:
     """Helper function to instantiate BatchSampler.
 
@@ -137,6 +146,25 @@ def build_batch_sampler(
             drop_last=drop_last,
             min_batch_size=min_batch_size,
             utt2category_file=utt2category_file,
+        )
+
+    elif type == "custom_folded":
+        if len(fold_lengths) != len(shape_files):
+            raise ValueError(
+                f"The number of fold_lengths must be equal to "
+                f"the number of shape_files: "
+                f"{len(fold_lengths)} != {len(shape_files)}"
+            )
+        retval = CustomFoldedBatchSampler(
+            batch_size=batch_size,
+            shape_files=shape_files,
+            fold_lengths=fold_lengths,
+            sort_in_batch=sort_in_batch,
+            sort_batch=sort_batch,
+            drop_last=drop_last,
+            min_batch_size=min_batch_size,
+            utt2category_file=utt2category_file,
+            batch_asr_ratio=batch_asr_ratio,
         )
 
     elif type == "numel":
