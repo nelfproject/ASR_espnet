@@ -3,6 +3,8 @@ To use this repository, setup your environment (e.g. from the environment.yaml) 
 
 The scripts to train and use the Flemish models can be found in egs2/cgn. 
 
+The corresponding pre-trained models can be downloaded from HuggingFace: https://huggingface.co/nelfproject.
+
 #############################################################################
 
 
